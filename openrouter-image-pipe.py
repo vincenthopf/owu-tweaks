@@ -190,7 +190,7 @@ gemini3|Gemini 3 Pro|google|premium|google/gemini-3-pro-image-preview""",
                 }
             )
 
-        modalities = await self._get_output_modalities(model)
+        modalities = self._get_output_modalities(model)
 
         payload = {
             "model": model,
@@ -260,18 +260,20 @@ gemini3|Gemini 3 Pro|google|premium|google/gemini-3-pro-image-preview""",
                 }
             )
 
-    async def _get_output_modalities(self, model_id: str) -> list[str]:
+    _LLM_IMAGE_PROVIDERS = {"google", "openai"}
+
+    def _get_output_modalities(self, model_id: str) -> list[str]:
         """Determine the correct output modalities for a model.
 
-        LLMs with image output (Gemini, GPT) support both ["image", "text"].
-        Dedicated image-gen models (FLUX, Seedream, Riverflow) only support ["image"].
-        Sending unsupported modalities causes OpenRouter to reject the request.
+        Only Google and OpenAI models are multimodal LLMs that support both
+        text and image output. All other providers (FLUX, Seedream, Riverflow)
+        are dedicated image-gen models that only support image output.
+        Requesting unsupported modalities causes OpenRouter to reject the request.
         """
-        models = await self._get_cached_models()
-        for m in models:
-            if m["id"] == model_id:
-                return m.get("output_modalities", ["image"])
-        return ["image", "text"]
+        provider = model_id.split("/")[0] if "/" in model_id else ""
+        if provider in self._LLM_IMAGE_PROVIDERS:
+            return ["image", "text"]
+        return ["image"]
 
     async def _resolve_model_by_preset(self, provider: str, quality: str) -> str:
         """Fetch and filter models from OpenRouter API based on provider and quality."""
